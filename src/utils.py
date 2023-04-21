@@ -60,8 +60,8 @@ def process_features(
         test_set: Test set with missing values
 
     Returns:
-        X_train: ML-ready train set feature matrix
-        X_test: ML-ready test set features matrix
+        x_train: ML-ready train set feature matrix
+        x_test: ML-ready test set features matrix
         y_train: Train set target vector
         y_test: Test set target vector
     """
