@@ -26,7 +26,6 @@ class DataIngestion:
         try:
             logging.info("Data ingestion initiated")
             df_raw = load_artifact(r"./data/student_performance.csv")
-            save_artifact(df_raw, self.ingestion_config.raw_data_path)
 
             logging.info("Splitting data into train and test sets")
             df_train, df_test = train_test_split(
@@ -34,16 +33,21 @@ class DataIngestion:
                 test_size=self.params["test_size"],
                 random_state=self.params["random_state"]
             )
+
+            logging.info(
+                "Saving the raw, train, and test data to %s",
+                os.path.join(os.getcwd(), os.path.dirname(self.ingestion_config.raw_data_path))
+            )
+            save_artifact(df_raw, self.ingestion_config.raw_data_path)
             save_artifact(df_train, self.ingestion_config.train_data_path)
             save_artifact(df_test, self.ingestion_config.test_data_path)
             logging.info("Data ingestion complete")
-
             return (
                 self.ingestion_config.train_data_path,
                 self.ingestion_config.test_data_path
             )
         except Exception as err:
-            raise CustomException(err, sys)
+            raise CustomException(err, sys) from err
 
 
 if __name__ == "__main__":
