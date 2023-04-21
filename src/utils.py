@@ -29,21 +29,21 @@ def load_artifact(path: str) -> Any:
         raise CustomException(err, sys) from err
 
 
-def save_artifact(artifact: Any, path: str):
+def save_artifact(python_object: Any, path: str):
     """
-    Writes artifact to path
+    Writes python_object to path
 
     Args:
-        artifact: Python object
-        path: File path the artifact is written to
+        python_object: Python object
+        path: File path python_object is written to
     """
-    directory = os.path.dirname(path)
-    os.makedirs(directory, exist_ok=True)
     try:
+        directory: str = os.path.dirname(path)
+        os.makedirs(directory, exist_ok=True)
         if path.split(".")[-1] == "pkl":
-            pickle.dump(artifact, open(path, "wb"))
+            pickle.dump(python_object, open(path, "wb"))
         if path.split(".")[-1] == "csv":
-            artifact.to_csv(path, index=False)
+            python_object.to_csv(path, index=False)
     except Exception as err:
         raise CustomException(err, sys) from err
 
@@ -69,7 +69,7 @@ def process_features(
         # read in './conf/parameters.yml'
         params = load_artifact(r"./conf/parameters.yml")
 
-        # separate the target from the features
+        # separate the features and target
         target: str = params["target"]
         x_train, y_train = train_set.drop(target, axis=1), train_set[target]
         x_test, y_test = test_set.drop(target, axis=1), test_set[target]

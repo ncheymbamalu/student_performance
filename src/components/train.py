@@ -5,8 +5,8 @@ import pandas as pd
 from src.logger import logging
 from src.exception import CustomException
 from src.utils import load_artifact, get_adj_rsquared
-from src.components.ingestion import DataIngestion
-from src.components.transformation import DataTransformation
+from src.components.ingest import DataIngestion
+from src.components.transform import DataTransformation
 
 
 class Train:
@@ -29,9 +29,8 @@ class Train:
         except Exception as err:
             raise CustomException(err, sys) from err
 
+
 if __name__ == "__main__":
     train_data_path, test_data_path = DataIngestion().ingest_data()
-    _, x_test, _, y_test = DataTransformation().transform_data(
-        train_data_path, test_data_path
-    )
+    _, x_test, _, y_test = DataTransformation(train_data_path, test_data_path).transform_data()
     Train().evaluate(x_test, y_test)
