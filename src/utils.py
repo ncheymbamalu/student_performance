@@ -149,3 +149,32 @@ def process_features(
         return x_train, x_test, y_train, y_test
     except Exception as err:
         raise CustomException(err, sys) from err
+
+
+def get_adj_rsquared(
+    feature_matrix: pd.DataFrame,
+    target_vector: pd.Series,
+    prediction_vector: np.ndarray
+) -> float:
+    """
+    Returns the adjusted R²
+
+    Args:
+        feature_matrix: feature matrix
+        target_vector: target vector
+        prediction_vector: prediction vector
+
+    Returns:
+        adj_rsquared: Adjusted R²
+      """
+    try:
+        n_records, n_features = feature_matrix.shape
+        total = target_vector - np.mean(target_vector)
+        sum_squared_total = total.dot(total)
+        error = target_vector - prediction_vector
+        sum_squared_error = error.dot(error)
+        rsquared = 1 - (sum_squared_error / sum_squared_total)
+        adj_rsquared = 1 - (((1 - rsquared) * (n_records - 1)) / (n_records - n_features - 1))
+        return adj_rsquared
+    except Exception as err:
+        raise CustomException(err, sys) from err
