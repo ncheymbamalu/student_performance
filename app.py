@@ -1,14 +1,16 @@
 import streamlit as st
-import pandas as pd
 
 from src.utils import load_artifact
 from src.pipelines.predict_pipeline import CustomData, PredictPipeline
 
-df_train = load_artifact(r"./artifacts/train_data.csv")
-df_test = load_artifact(r"./artifacts/test_data.csv")
-data = pd.concat([df_train, df_test], axis=0)
+data = load_artifact(r"./artifacts/raw_data.csv")
 
-st.write("### Student Performance: Math Score Prediction")
+st.title("Student Performance")
+
+if st.checkbox("Show Dataset"):
+    st.dataframe(data)
+
+st.write("### Required Information:")
 
 # categorical features
 genders = ["male", "female"]
@@ -48,7 +50,7 @@ writing_score = st.slider(
     20
 )
 
-button = st.button("Predict Score")
+button = st.button("Predict Math Score")
 
 # prediction
 if button:
