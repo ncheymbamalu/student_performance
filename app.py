@@ -1,9 +1,12 @@
+from typing import List
+
 import streamlit as st
+import pandas as pd
 
 from src.utils import load_artifact
 from src.pipelines.predict_pipeline import CustomData, PredictPipeline
 
-data = load_artifact(r"./artifacts/raw_data.csv")
+data: pd.DataFrame = load_artifact(r"./artifacts/test.csv")
 
 st.title("Student Performance")
 
@@ -16,7 +19,7 @@ st.write("### Required Information:")
 genders = ["male", "female"]
 gender = st.selectbox("Gender", genders)
 
-race_ethnicities = sorted(set(data["race_ethnicity"].dropna()))
+race_ethnicities: List[str] = sorted(set(data["race_ethnicity"].dropna()))
 race_ethnicity = st.selectbox("Race Ethnicity", race_ethnicities)
 
 parent_education_levels = [
@@ -29,10 +32,10 @@ parent_education_levels = [
 ]
 parental_level_of_education = st.selectbox("Parents' Education Level", parent_education_levels)
 
-lunch_types = sorted(set(data["lunch"].dropna()))
+lunch_types: List[str] = sorted(set(data["lunch"].dropna()))
 lunch = st.selectbox("Lunch Type", lunch_types)
 
-test_prep_choices = sorted(set(data["test_preparation_course"].dropna()))
+test_prep_choices: List[str] = sorted(set(data["test_preparation_course"].dropna()))
 test_preparation_course = st.selectbox("Test Preparation Course", test_prep_choices)
 
 # numeric features
@@ -54,15 +57,17 @@ button = st.button("Predict Math Score")
 
 # prediction
 if button:
-    record = CustomData(
-        gender=gender,
-        race_ethnicity=race_ethnicity,
-        parental_level_of_education=parental_level_of_education,
-        lunch=lunch,
-        test_preparation_course=test_preparation_course,
-        reading_score=reading_score,
-        writing_score=writing_score
-    ).to_dataframe()
-    prediction = PredictPipeline().predict(record)
-
+    record: pd.DataFrame = (
+        CustomData(
+            gender=gender,
+            race_ethnicity=race_ethnicity,
+            parental_level_of_education=parental_level_of_education,
+            lunch=lunch,
+            test_preparation_course=test_preparation_course,
+            reading_score=reading_score,
+            writing_score=writing_score
+        )
+        .to_dataframe()
+    )
+    prediction: int = PredictPipeline(record).predict()
     st.subheader(f"The estimated math score is {prediction} (out of 100)")

@@ -1,6 +1,7 @@
+from typing import List
 from setuptools import find_packages, setup
 
-PYTHON_PACKAGES = [
+PYTHON_PACKAGES: List[str] = [
     package
     for package in open(r"./requirements.txt", "r").read().splitlines()
     if package != "-e ."

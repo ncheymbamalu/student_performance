@@ -1,4 +1,5 @@
-from typing import Tuple, Any
+from typing import Tuple, List, Dict, Union, Any
+from pathlib import Path
 import os
 import sys
 import pickle
@@ -11,39 +12,39 @@ from yaml import SafeLoader
 from src.exception import CustomException
 
 
-def load_artifact(path: str) -> Any:
+def load_artifact(filepath: str) -> Any:
     """
-    Reads in an artifact as a Python object
+    Reads in filepath as a Python object
 
     Args:
-        path: Artifact file path
+        filepath: Artifact file path
     """
     try:
-        if path.split(".")[-1] == "yml":
-            return yaml.load(open(path), Loader=SafeLoader)
-        if path.split(".")[-1] == "pkl":
-            return pickle.load(open(path, "rb"))
-        if path.split(".")[-1] == "csv":
-            return pd.read_csv(path)
+        if Path(filepath).suffix == ".yml":
+            return yaml.load(open(filepath), Loader=SafeLoader)
+        if Path(filepath).suffix == ".pkl":
+            return pickle.load(open(filepath, "rb"))
+        if Path(filepath).suffix == ".csv":
+            return pd.read_csv(filepath)
     except Exception as err:
         raise CustomException(err, sys) from err
 
 
-def save_artifact(python_object: Any, path: str):
+def save_artifact(python_object: Any, filepath: str):
     """
-    Writes python_object to path
+    Writes python_object to filepath
 
     Args:
         python_object: Python object
-        path: File path python_object is written to
+        filepath: File path where python_object is written to
     """
     try:
-        directory: str = os.path.dirname(path)
+        directory: str = os.path.dirname(filepath)
         os.makedirs(directory, exist_ok=True)
-        if path.split(".")[-1] == "pkl":
-            pickle.dump(python_object, open(path, "wb"))
-        if path.split(".")[-1] == "csv":
-            python_object.to_csv(path, index=False)
+        if Path(filepath).suffix == ".pkl":
+            pickle.dump(python_object, open(filepath, "wb"))
+        if Path(filepath).suffix == ".csv":
+            python_object.to_csv(filepath, index=False)
     except Exception as err:
         raise CustomException(err, sys) from err
 
@@ -67,34 +68,35 @@ def process_features(
     """
     try:
         # read in './conf/parameters.yml'
-        params = load_artifact(r"./conf/parameters.yml")
+        params: Dict[str, Any] = load_artifact(r"./conf/parameters.yml")
 
         # separate the features and target
-        target: str = params["target"]
-        x_train, y_train = train_set.drop(target, axis=1), train_set[target]
-        x_test, y_test = test_set.drop(target, axis=1), test_set[target]
+        target: str = params.get("target")
+        x_train: pd.DataFrame = train_set.drop(target, axis=1)
+        y_train: pd.Series = train_set[target]
+        x_test: pd.DataFrame = test_set.drop(target, axis=1)
+        y_test: pd.Series = test_set[target]
 
         # specify the numeric and categorical (nominal and ordinal) features
-        numeric_cols: list = params["numeric_features"]
-        nominal_cols: list = params["nominal_features"]
-        ordinal_cols: list = params["ordinal"]["features"]
+        numeric_cols: List[str] = params.get("numeric_features")
+        nominal_cols: List[str] = params.get("nominal_features")
+        ordinal_cols: List[str] = params.get("ordinal").get("features")
 
         # identify the features that have missing values
-        null_cols = [
+        null_cols: List[str] = [
             col
             for col in numeric_cols + nominal_cols + ordinal_cols
             if x_train[col].isna().sum() > 0
         ]
 
         # label encode the categorical features
-        ctoi, itoc = {}, {}
+        itoc: Dict[str, Dict[int, str]] = {}
         for col in nominal_cols + ordinal_cols:
-            categories = sorted(set(x_train[col].dropna()))
-            indices = range(len(categories))
-            ctoi[col] = dict(zip(categories, indices))
+            categories: List[str] = sorted(set(x_train[col].dropna()))
+            indices: range = range(len(categories))
             itoc[col] = dict(zip(indices, categories))
-            x_train[col] = x_train[col].map(ctoi[col])
-            x_test[col] = x_test[col].map(ctoi[col])
+            x_train[col] = x_train[col].map(dict(zip(categories, indices)))
+            x_test[col] = x_test[col].map(dict(zip(categories, indices)))
 
         # read in './artifacts/imputer.pkl'
         imputer = load_artifact(r"./artifacts/imputer.pkl")
@@ -102,29 +104,29 @@ def process_features(
         # impute the train and test set features
         x_train = pd.DataFrame(
             imputer.transform(x_train),
-            columns=x_train.columns.tolist(),
-            index=x_train.index.tolist()
+            index=x_train.index.tolist(),
+            columns=x_train.columns.tolist()
         )
         x_test = pd.DataFrame(
             imputer.transform(x_test),
-            columns=x_test.columns.tolist(),
-            index=x_test.index.tolist()
+            index=x_test.index.tolist(),
+            columns=x_test.columns.tolist()
         )
 
         # map each categorical feature back to its original categories
         for col in nominal_cols + ordinal_cols:
             if col in null_cols:
-                x_train[col] = np.abs(x_train[col]).round().astype(int).map(itoc[col])
-                x_test[col] = np.abs(x_test[col]).round().astype(int).map(itoc[col])
+                x_train[col] = np.abs(x_train[col]).round().astype(int).map(itoc.get(col))
+                x_test[col] = np.abs(x_test[col]).round().astype(int).map(itoc.get(col))
             else:
-                x_train[col] = x_train[col].astype(int).map(itoc[col])
-                x_test[col] = x_test[col].astype(int).map(itoc[col])
+                x_train[col] = x_train[col].astype(int).map(itoc.get(col))
+                x_test[col] = x_test[col].astype(int).map(itoc.get(col))
 
         # read in './artifacts/feature_transformer.pkl'
         ft = load_artifact(r"./artifacts/feature_transformer.pkl")
 
-        # extract the 'ft' object's one-hot encoded features
-        ohe_cols = []
+        # extract the one-hot encoded features from the 'ft' object
+        ohe_cols: List[str] = []
         for array in ft.transformers_[1][1].categories_:
             ohe_cols += [
                 category.lower().replace(" ", "_").replace("/", "_")
@@ -134,13 +136,13 @@ def process_features(
         # transform the train and test set features
         x_train = pd.DataFrame(
             ft.transform(x_train),
-            columns=numeric_cols + ohe_cols + ordinal_cols,
-            index=x_train.index.tolist()
+            index=x_train.index.tolist(),
+            columns=numeric_cols + ohe_cols + ordinal_cols
         )
         x_test = pd.DataFrame(
             ft.transform(x_test),
-            columns=numeric_cols + ohe_cols + ordinal_cols,
-            index=x_test.index.tolist()
+            index=x_test.index.tolist(),
+            columns=numeric_cols + ohe_cols + ordinal_cols
         )
 
         # remove duplicate features
@@ -154,7 +156,7 @@ def process_features(
 def get_adj_rsquared(
     feature_matrix: pd.DataFrame,
     target_vector: pd.Series,
-    prediction_vector: np.ndarray
+    prediction_vector: Union[np.ndarray, pd.Series]
 ) -> float:
     """
     Returns the adjusted R²
@@ -169,12 +171,12 @@ def get_adj_rsquared(
       """
     try:
         n_records, n_features = feature_matrix.shape
-        total = target_vector - np.mean(target_vector)
-        sum_squared_total = total.dot(total)
-        error = target_vector - prediction_vector
-        sum_squared_error = error.dot(error)
-        rsquared = 1 - (sum_squared_error / sum_squared_total)
-        adj_rsquared = 1 - (((1 - rsquared) * (n_records - 1)) / (n_records - n_features - 1))
+        total: pd.Series = target_vector - np.mean(target_vector)
+        sum_squared_total: float = total.dot(total)
+        error: pd.Series = target_vector - prediction_vector
+        sum_squared_error: float = error.dot(error)
+        rsquared: float = 1 - (sum_squared_error / sum_squared_total)
+        adj_rsquared: float = 1 - (((1 - rsquared)*(n_records - 1))/(n_records - n_features - 1))
         return adj_rsquared
     except Exception as err:
         raise CustomException(err, sys) from err
